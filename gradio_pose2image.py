@@ -52,6 +52,7 @@ def process(
     eta,
 ):
     with torch.no_grad():
+        print('type(input_image)', type(input_image))
         input_image = HWC3(input_image)
         detected_map, _ = apply_openpose(resize_image(input_image, detect_resolution))
         detected_map = HWC3(detected_map)

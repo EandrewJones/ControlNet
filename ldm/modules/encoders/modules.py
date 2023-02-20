@@ -2,11 +2,15 @@ import torch
 import torch.nn as nn
 from torch.utils.checkpoint import checkpoint
 
-from transformers import T5Tokenizer, T5EncoderModel, CLIPTokenizer, CLIPTextModel, 
+from transformers import T5Tokenizer, T5EncoderModel, CLIPTokenizer, CLIPTextModel, PreTrainedTokenizer, PreTrainedModel
 
 import open_clip
 from ldm.util import default, count_params
 
+from typing import Union, Dict, List, Optional, Callable
+from functools import lru_cache
+import random
+import copy
 
 class MultiTokenCLIPTokenizer(CLIPTokenizer):
     """Tokenizer for CLIP models that have multi-vector tokens."""
@@ -488,7 +492,7 @@ class FrozenT5Embedder(AbstractEncoder):
         return self(text)
 
 
-class FrozenCLIPEmbedder(AbstractEncoder):
+class FrozenCLIPEmbedder(AbstractEncoder, TextualInversionLoaderMixin):
     """Uses the CLIP transformer encoder for text (from huggingface)"""
     LAYERS = [
         "last",
@@ -501,6 +505,7 @@ class FrozenCLIPEmbedder(AbstractEncoder):
         assert layer in self.LAYERS
         self.tokenizer = MultiTokenCLIPTokenizer.from_pretrained(version)
         self.transformer = CLIPTextModel.from_pretrained(version)
+        print("tokenizer", self.tokenizer)
         self.device = device
         self.max_length = max_length
         if freeze:
@@ -518,9 +523,13 @@ class FrozenCLIPEmbedder(AbstractEncoder):
             param.requires_grad = False
 
     def forward(self, text):
+        print('text', text)
         batch_encoding = self.tokenizer(text, truncation=True, max_length=self.max_length, return_length=True,
-                                        return_overflowing_tokens=False, padding="max_length", return_tensors="pt")
+                                        return_overflowing_tokens=True, padding="max_length", return_tensors="pt")
+        print('batch_encoding', batch_encoding)
+        # import pdb; pdb.set_trace()
         tokens = batch_encoding["input_ids"].to(self.device)
+        print('tokens.shape', tokens.shape)
         outputs = self.transformer(input_ids=tokens, output_hidden_states=self.layer=="hidden")
         if self.layer == "last":
             z = outputs.last_hidden_state

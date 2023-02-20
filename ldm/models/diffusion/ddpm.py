@@ -662,16 +662,21 @@ class LatentDiffusion(DDPM):
         return self.scale_factor * z
 
     def get_learned_conditioning(self, c):
+        print('get_learned_conditioning for c=', c)
         if self.cond_stage_forward is None:
             if hasattr(self.cond_stage_model, 'encode') and callable(self.cond_stage_model.encode):
+                print('using encode')
                 c = self.cond_stage_model.encode(c)
                 if isinstance(c, DiagonalGaussianDistribution):
                     c = c.mode()
             else:
+                print('using forward')
                 c = self.cond_stage_model(c)
         else:
+            print('using cond_stage_forward', self.cond_stage_forward)
             assert hasattr(self.cond_stage_model, self.cond_stage_forward)
             c = getattr(self.cond_stage_model, self.cond_stage_forward)(c)
+        print('final c=', c)
         return c
 
     def meshgrid(self, h, w):
