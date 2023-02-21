@@ -1,20 +1,16 @@
 """
-Derived from:
+Long Prompt Weighting (LPW) derived from:
 https://github.com/huggingface/diffusers/blob/main/examples/community/lpw_stable_diffusion.py
 """
-import inspect
 import re
 from typing import Callable, List, Optional, Union
 
-import numpy as np
-import PIL
 import torch
-from packaging import version
-from transformers import CLIPFeatureExtractor, CLIPTextModel, CLIPTokenizer
+from transformers import CLIPTextModel, CLIPTokenizer
 
 import logging
 
-logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 re_attention = re.compile(
     r"""
