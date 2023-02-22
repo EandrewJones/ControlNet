@@ -13,6 +13,7 @@ from annotator.util import resize_image, HWC3
 from annotator.openpose import OpenposeDetector
 from cldm.model import create_model, load_state_dict
 from cldm.ddim_hacked import DDIMSampler
+from ldm.modules import lpw
 
 
 apply_openpose = OpenposeDetector()
@@ -52,7 +53,7 @@ def process(
     eta,
 ):
     with torch.no_grad():
-        print('type(input_image)', type(input_image))
+        print("type(input_image)", type(input_image))
         input_image = HWC3(input_image)
         detected_map, _ = apply_openpose(resize_image(input_image, detect_resolution))
         detected_map = HWC3(detected_map)
@@ -72,15 +73,21 @@ def process(
         if config.save_memory:
             model.low_vram_shift(is_diffusing=False)
 
+        text_embeddings, uncond_embeddings = lpw.get_weighted_text_embeddings(
+            model.cond_stage_model.tokenizer,
+            model.cond_stage_model.transformer,
+            [prompt + ", " + a_prompt] * num_samples,
+            [n_prompt] * num_samples,
+            max_embeddings_multiples=3,
+        )
+
         cond = {
             "c_concat": [control],
-            "c_crossattn": [
-                model.get_learned_conditioning([prompt + ", " + a_prompt] * num_samples)
-            ],
+            "c_crossattn": [text_embeddings],
         }
         un_cond = {
             "c_concat": None if guess_mode else [control],
-            "c_crossattn": [model.get_learned_conditioning([n_prompt] * num_samples)],
+            "c_crossattn": [uncond_embeddings],
         }
         shape = (4, H // 8, W // 8)
 
